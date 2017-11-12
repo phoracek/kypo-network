@@ -35,7 +35,7 @@ def main():
     else:
         sandbox_config = None
     output = setup.setup(args.client_type, sandbox_config)
-    if not args.client:
+    if args.client_type in setup.DRY_CLIENT_TYPES:
         json.dump(output, sys.stdout)
 
 
