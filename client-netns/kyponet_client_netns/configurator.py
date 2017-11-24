@@ -58,6 +58,7 @@ def _create_bridges(ovs_idl, networks):
         netns_name = _get_netns_name(network_name)
         _ip.link_set(bridge_name, ['netns', netns_name])
         _ip.link_set(bridge_name, ['up'], netns=netns_name)
+        _ip.link_set('lo', ['up'], netns=netns_name)
     return bridge_by_network
 
 
