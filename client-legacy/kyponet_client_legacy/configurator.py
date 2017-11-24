@@ -57,6 +57,7 @@ def _attach_ports(ovs_idl, network, hosts):
                     continue
                 host_iface_name = port['hostInterface']
                 txn.add(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
+                _ip.link_set(host_iface_name, ['up'])
 
 
 def _configure_routes(network, network_by_name, links):
