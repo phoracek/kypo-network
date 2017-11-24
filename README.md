@@ -392,10 +392,11 @@ kyponet-master --config configuration.json --client-type netns
 
 Now there should be interconnectivity between all L3 switches and hosts. You
 can access L3 switches by entering their respective netns. With following
-commands you can ping net3 from net1.
+commands you can ping host2 from net1 (don't forget to setup address and
+default route on the host).
 
 ```shell
-ip netns exec kns_net1 ping 10.0.3.1
+ip netns exec kns_net1 ping 10.0.3.2
 ```
 
 ## Development and Testing
