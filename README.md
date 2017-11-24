@@ -157,7 +157,7 @@ apt-get update
 apt-get install -y git
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/master
-pip install .
+pip install -U --force-reinstall .
 ```
 
 On each LMN install client-legacy.
@@ -171,12 +171,9 @@ echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 # echo enable forwarding (TODO part of setup)
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
-# update pyOpenSSL
-pip install -U pyOpenSSL
-
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/client-legacy
-pip install .
+pip install -U --force-reinstall .
 ```
 
 Run master executable on SMN. Following command will obtain configuration from
@@ -290,7 +287,7 @@ apt-get update
 apt-get install -y git
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/master
-pip install .
+pip install -U --force-reinstall .
 ```
 
 Install client-netns on LMN.
@@ -304,12 +301,9 @@ echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 # echo enable forwarding (TODO part of setup)
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
-# update pyOpenSSL
-pip install -U pyOpenSSL
-
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/client-legacy
-pip install .
+pip install -U --force-reinstall .
 ```
 
 Save following config on SMN, it will be used by master as an input
