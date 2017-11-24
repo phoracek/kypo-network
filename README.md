@@ -395,7 +395,7 @@ can access L3 switches by entering their respective netns. With following
 commands you can ping net3 from net1.
 
 ```shell
-ip netns exec kns-net1 ping 10.0.3.1
+ip netns exec kns_net1 ping 10.0.3.1
 ```
 
 ## Development and Testing
