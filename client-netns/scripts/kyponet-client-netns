@@ -22,10 +22,10 @@ from kyponet_client_netns import configurator
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    if 'setup' in sys.argv[1:]:
+    if sys.argv[1] == 'setup':
         config = json.load(sys.stdin)
         configurator.setup(config)
-    elif 'cleanup' in sys.argv[1:]:
+    elif sys.argv[1] == 'cleanup':
         configurator.cleanup()
     else:
         raise AttributeError()
