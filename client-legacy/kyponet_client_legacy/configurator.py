@@ -14,6 +14,7 @@
 
 from . import _ip
 from . import _ovs
+from . import _sysctl
 
 BRIDGE_NAME = 'br0'
 OWNED_METRIC = 123  # TODO: temporary solution for owned routes labeling
@@ -86,6 +87,7 @@ def _configure_routes(network, network_by_name, links):
             'metric': OWNED_METRIC
         })
 
+    _sysctl.enable_ipv4_forwarding()
     for dev in dev_by_link.values():
         _ip.link_set(dev, ['up'])
     for route_config in neighbor_routes_config:

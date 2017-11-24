@@ -17,6 +17,7 @@ import string
 
 from . import _ip
 from . import _ovs
+from . import _sysctl
 
 BRIDGE_PREFIX = 'kbr_'
 NETNS_PREFIX = 'kns_'
@@ -124,6 +125,7 @@ def _configure_routes(networks, veth_by_link):
                 'netns': netns_name
             })
 
+    _sysctl.enable_ipv4_forwarding()
     for route_config in neighbor_routes_config:
         _ip.route_add(**route_config)
     for route_config in routes_config:

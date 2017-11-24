@@ -168,9 +168,6 @@ ip route add default via 172.16.1.1
 sed -i '$ d' /etc/resolv.conf
 echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 
-# echo enable forwarding (TODO part of setup)
-echo 1 > /proc/sys/net/ipv4/ip_forward
-
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/client-legacy
 pip install -U --force-reinstall .
@@ -297,9 +294,6 @@ Install client-netns on LMN.
 ip route add default via 172.16.1.1
 sed -i '$ d' /etc/resolv.conf
 echo 'nameserver 8.8.8.8' > /etc/resolv.conf
-
-# echo enable forwarding (TODO part of setup)
-echo 1 > /proc/sys/net/ipv4/ip_forward
 
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/client-legacy
