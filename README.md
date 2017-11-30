@@ -25,8 +25,13 @@ Automatizes current network configuration.
 
 #### client-netns
 
-Setups multiple networks on one LMN. This is not yet fully integrated into
-KYPO.
+Setups multiple networks on one LMN, network isolation is done via network
+namespaces. This is not yet fully integrated into KYPO.
+
+#### client-sdn
+
+Setups multiple networks on one LMN, network isolation is done via OVN
+(software-defined networking). This is not yet fully integrated into KYPO.
 
 ## Examples
 
@@ -398,6 +403,225 @@ default route on the host).
 ```shell
 ip netns exec kns_net1 ping 10.0.3.2
 ```
+
+### Setup SDN based single-LMN networking
+
+
+Deploy single-LMN sandbox.
+
+```
+host1 (10.0.1.2/24)
+  |
+ net  (10.0.0.1/24)  # will contain net1, net2 and net3
+  |
+host2 (10.0.3.2/24)
+```
+
+With following steps we will create multiple networks within one LMN.
+
+```
+host1 (10.0.1.2/24)
+  |
+ net1 (10.0.1.1/24)
+  |
+ net2 (10.0.2.1/24)
+  |
+ net3 (10.0.3.1/24)
+  |
+host2 (10.0.3.2/24)
+```
+
+Currently there is not support for single-LMN/multiple-networks in KYPO. Due to
+that we will use one configuration to setup sandbox and another to configure
+networks on top of it.
+
+```json
+{
+  "sandbox": {
+    "name": "kyponet-sdn",
+    "document path": "",
+    "teams": [
+      "single user"
+    ],
+    "logicalRoles": [
+      "none"
+    ]
+  },
+  "networks": {
+    "networks": [
+      {
+        "name": "net",
+        "ip": "10.0.0.0",
+        "prefix": 16,
+        "maxHosts": 1
+      }
+    ]
+  },
+  "routes": {
+    "routes": []
+  },
+  "hosts": {
+    "hosts": [
+      {
+        "name": "host1",
+        "lan": "net",
+        "ip": "10.0.1.2",
+        "physRole": "desktop"
+      },
+      {
+        "name": "host2",
+        "lan": "net",
+        "ip": "10.0.3.2",
+        "physRole": "desktop"
+      }
+    ]
+  },
+  "linksProperties": {
+    "linksProperties": []
+  },
+  "hostsAccess": {
+    "teams": [
+      {
+        "name": "single user",
+        "logicalRoles": [
+          "none"
+        ]
+      }
+    ]
+  }
+}
+```
+
+Install master on SMN.
+
+```shell
+# enable NAT to external network
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+iptables -A FORWARD -i eth0 -o eth1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -i eth1 -o eth0 -j ACCEPT
+
+apt-get update
+apt-get install -y git
+git clone https://github.com/phoracek/kypo-network
+cd kypo-network/master
+pip install -U --force-reinstall .
+```
+
+Install client-sdn on LMN.
+
+```shell
+# setup connection to external network
+ip route add default via 172.16.1.1
+sed -i '$ d' /etc/resolv.conf
+echo 'nameserver 8.8.8.8' > /etc/resolv.conf
+
+git clone https://github.com/phoracek/kypo-network
+cd kypo-network/client-sdn
+pip install -U --force-reinstall .
+```
+
+Configure OVN on LMN.
+
+```shell
+ovs-vsctl set open . external-ids:ovn-remote=tcp:127.0.0.1:6642
+ovs-vsctl set open . external-ids:ovn-encap-type=geneve
+ovs-vsctl set open . external-ids:ovn-encap-ip=127.0.0.1
+ovn-nbctl set-connection ptcp:6641
+ovn-sbctl set-connection ptcp:6642
+```
+
+Save following config on SMN, it will be used by master as an input
+configuration instead of KYPODB.
+
+```json
+{
+  "sandbox": {
+    "name": "kyponet-legacy",
+    "document path": "",
+    "teams": [
+      "single user"
+    ],
+    "logicalRoles": [
+      "none"
+    ]
+  },
+  "networks": {
+    "networks": [
+      {
+        "name": "net1",
+        "ip": "10.0.1.0",
+        "prefix": 24,
+        "maxHosts": 1
+      },
+      {
+        "name": "net2",
+        "ip": "10.0.2.0",
+        "prefix": 24,
+        "maxHosts": 0
+      },
+      {
+        "name": "net3",
+        "ip": "10.0.3.0",
+        "prefix": 24,
+        "maxHosts": 1
+      }
+    ]
+  },
+  "routes": {
+    "routes": [
+      {
+        "name": "",
+        "lan1": "net1",
+        "lan2": "net2"
+      },
+      {
+        "name": "",
+        "lan1": "net2",
+        "lan2": "net3"
+      }
+    ]
+  },
+  "hosts": {
+    "hosts": [
+      {
+        "name": "host1",
+        "lan": "net1",
+        "ip": "10.0.1.2",
+        "physRole": "desktop"
+      },
+      {
+        "name": "host2",
+        "lan": "net3",
+        "ip": "10.0.3.2",
+        "physRole": "desktop"
+      }
+    ]
+  },
+  "linksProperties": {},
+  "hostsAccess": {
+    "teams": [
+      {
+        "name": "single user",
+        "logicalRoles": [
+          "none"
+        ]
+      }
+    ]
+  }
+}
+```
+
+Run master executable on SMN. Following command will obtain configuration from
+the configuration file saved in previous step, calculate routes for
+interconnectivity and remotely execute client on the single LMN with its client
+configuration.
+
+```shell
+kyponet-master --config configuration.json --client-type sdn
+```
+
+Now there should be interconnectivity between all hosts.
 
 ## Development and Testing
 
