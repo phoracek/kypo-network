@@ -296,7 +296,7 @@ sed -i '$ d' /etc/resolv.conf
 echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 
 git clone https://github.com/phoracek/kypo-network
-cd kypo-network/client-legacy
+cd kypo-network/client-netns
 pip install -U --force-reinstall .
 ```
 
@@ -306,7 +306,7 @@ configuration instead of KYPODB.
 ```json
 {
   "sandbox": {
-    "name": "kyponet-legacy",
+    "name": "kyponet-netns",
     "document path": "",
     "teams": [
       "single user"
