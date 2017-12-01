@@ -87,17 +87,10 @@ def _connect_routers(ovn_nb_idl, txn, network_links, networks):
             lr_b_name, lrp_b_name, lrp_b_mac, [lr_b_address], peer=lrp_a_name))
 
 
-# TODO: this function will be refactored once ovsdbapp patches are merged
-# and transaction can be used
 def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
-    with ovs_idl.create_transaction(check_error=True) as txn:
-        for host in hosts:
-            for port in host['ports']:
-                host_iface_name = port['hostInterface']
-                txn.add(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
-                _ip.link_set(host_iface_name, ['up'])
     mac_by_iface = _get_mac_by_iface()
-    with ovn_nb_idl.create_transaction(check_error=True) as txn:
+    with ovs_idl.create_transaction(check_error=True) as ovs_txn, \
+            ovn_nb_idl.create_transaction(check_error=True) as ovn_nb_txn:
         for host in hosts:
             ports_by_net = {}
             for port in host['ports']:
@@ -105,13 +98,16 @@ def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
             for net, ports in ports_by_net.items():
                 for i, port in enumerate(ports):
                     host_iface_name = port['hostInterface']
+                    ovs_txn.add(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
+                    _ip.link_set(host_iface_name, ['up'])
                     iface_id = '{}-{}-{}'.format(host['name'], net, i)
-                    txn.add(ovs_idl.iface_set_external_id(
+                    ovn_nb_txn.add(ovs_idl.iface_set_external_id(
                         host_iface_name, 'iface-id', iface_id))
-                    txn.add(ovn_nb_idl.lsp_add(_get_ls_name(net), iface_id))
+                    ovn_nb_txn.add(ovn_nb_idl.lsp_add(
+                        _get_ls_name(net), iface_id))
                     guest_iface_mac = _get_incremented_mac(
                         mac_by_iface[host_iface_name])
-                    txn.add(ovn_nb_idl.lsp_set_addresses(
+                    ovn_nb_txn.add(ovn_nb_idl.lsp_set_addresses(
                         iface_id, [guest_iface_mac]))
                     # TODO set port security?
 
