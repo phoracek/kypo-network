@@ -106,11 +106,8 @@ def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
                 for i, port in enumerate(ports):
                     host_iface_name = port['hostInterface']
                     iface_id = '{}-{}-{}'.format(host['name'], net, i)
-                    subprocess.check_call([
-                        'ovs-vsctl', 'set',
-                        'Interface', host_iface_name,
-                        'external-ids:iface-id=' + iface_id
-                    ])
+                    txn.add(ovs_idl.iface_set_external_id(
+                        host_iface_name, 'iface-id', iface_id))
                     txn.add(ovn_nb_idl.lsp_add(_get_ls_name(net), iface_id))
                     guest_iface_mac = _get_incremented_mac(
                         mac_by_iface[host_iface_name])
