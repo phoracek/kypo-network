@@ -97,7 +97,6 @@ def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
                 txn.add(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
                 _ip.link_set(host_iface_name, ['up'])
     mac_by_iface = _get_mac_by_iface()
-    address_by_lsp = {}
     with ovn_nb_idl.create_transaction(check_error=True) as txn:
         for host in hosts:
             ports_by_net = {}
@@ -115,10 +114,9 @@ def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
                     txn.add(ovn_nb_idl.lsp_add(_get_ls_name(net), iface_id))
                     guest_iface_mac = _get_incremented_mac(
                         mac_by_iface[host_iface_name])
-                    address_by_lsp[iface_id] = guest_iface_mac
+                    txn.add(ovn_nb_idl.lsp_set_addresses(
+                        iface_id, [guest_iface_mac]))
                     # TODO set port security?
-    for lsp, mac in address_by_lsp.items():
-        subprocess.check_call(['ovn-nbctl', 'lsp-set-addresses', lsp, mac])
 
 
 # TODO: use ovsdbapp when static routes are fixed
