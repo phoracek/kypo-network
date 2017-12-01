@@ -26,22 +26,26 @@ LR_PREFIX = 'lr_'
 
 def setup(config):
     ovs_idl = _ovs.create_idl()
-    ovn_nb_idl = _ovn_nb.create_idl()
+    ovn_idl = _ovn_nb.create_idl()
 
-    _cleanup(ovs_idl, ovn_nb_idl)
+    _cleanup(ovs_idl, ovn_idl)
 
     hosts = config['hosts']
     networks = config['networks']
     network_links = config['networkLinks']
 
-    with ovn_nb_idl.create_transaction(check_error=True) as txn:
-        _create_routers_and_switches(ovn_nb_idl, txn, networks)
-        _connect_routers(ovn_nb_idl, txn, network_links, networks)
-    _attach_ports(ovs_idl, ovn_nb_idl, hosts)
+    with ovn_idl.create_transaction(check_error=True) as ovn_txn, \
+            ovs_idl.create_transaction(check_error=True) as ovs_txn:
+        ovn_txn.extend(_create_routers_and_switches(ovn_idl, networks))
+        ovn_txn.extend(_connect_routers(ovn_idl, network_links, networks))
+        ovn_ports_cmds, ovs_ports_cmds = _attach_ports(ovs_idl, ovn_idl, hosts)
+        ovn_txn.extend(ovn_ports_cmds)
+        ovs_txn.extend(ovs_ports_cmds)
     _configure_routes(networks)
 
 
-def _create_routers_and_switches(ovn_nb_idl, txn, networks):
+def _create_routers_and_switches(ovn_idl, networks):
+    cmds = []
     for network in networks:
         lr_name = _get_lr_name(network['name'])
         ls_name = _get_ls_name(network['name'])
@@ -51,18 +55,20 @@ def _create_routers_and_switches(ovn_nb_idl, txn, networks):
         prefix = network['cidr4'].split('/')[1]
         ip_address = '{}/{}'.format(network['address4'], prefix)
 
-        txn.add(ovn_nb_idl.lr_add(lr_name))
-        txn.add(ovn_nb_idl.lrp_add(lr_name, lrp_name, mac, [ip_address]))
+        cmds.append(ovn_idl.lr_add(lr_name))
+        cmds.append(ovn_idl.lrp_add(lr_name, lrp_name, mac, [ip_address]))
 
-        txn.add(ovn_nb_idl.ls_add(ls_name))
-        txn.add(ovn_nb_idl.lsp_add(ls_name, lsp_name))
-        txn.add(ovn_nb_idl.lsp_set_type(lsp_name, 'router'))
-        txn.add(ovn_nb_idl.lsp_set_addresses(lsp_name, ['router']))
-        txn.add(ovn_nb_idl.lsp_set_options(
+        cmds.append(ovn_idl.ls_add(ls_name))
+        cmds.append(ovn_idl.lsp_add(ls_name, lsp_name))
+        cmds.append(ovn_idl.lsp_set_type(lsp_name, 'router'))
+        cmds.append(ovn_idl.lsp_set_addresses(lsp_name, ['router']))
+        cmds.append(ovn_idl.lsp_set_options(
             lsp_name, **{'router-port': lrp_name}))
+    return cmds
 
 
-def _connect_routers(ovn_nb_idl, txn, network_links, networks):
+def _connect_routers(ovn_idl, network_links, networks):
+    cmds = []
     network_by_name = {network['name']: network for network in networks}
     for network_link in network_links:
         network_a = network_by_name[network_link['networkA']]
@@ -81,35 +87,37 @@ def _connect_routers(ovn_nb_idl, txn, network_links, networks):
         lrp_b_name = '{}-{}'.format(lr_b_name, lr_a_name)
         lrp_b_mac = _random_unicast_local_mac()
 
-        txn.add(ovn_nb_idl.lrp_add(
+        cmds.append(ovn_idl.lrp_add(
             lr_a_name, lrp_a_name, lrp_a_mac, [lr_a_address], peer=lrp_b_name))
-        txn.add(ovn_nb_idl.lrp_add(
+        cmds.append(ovn_idl.lrp_add(
             lr_b_name, lrp_b_name, lrp_b_mac, [lr_b_address], peer=lrp_a_name))
+    return cmds
 
 
-def _attach_ports(ovs_idl, ovn_nb_idl, hosts):
+def _attach_ports(ovs_idl, ovn_idl, hosts):
+    ovn_cmds = []
+    ovs_cmds = []
     mac_by_iface = _get_mac_by_iface()
-    with ovs_idl.create_transaction(check_error=True) as ovs_txn, \
-            ovn_nb_idl.create_transaction(check_error=True) as ovn_nb_txn:
-        for host in hosts:
-            ports_by_net = {}
-            for port in host['ports']:
-                ports_by_net.setdefault(port['networkName'], []).append(port)
-            for net, ports in ports_by_net.items():
-                for i, port in enumerate(ports):
-                    host_iface_name = port['hostInterface']
-                    ovs_txn.add(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
-                    _ip.link_set(host_iface_name, ['up'])
-                    iface_id = '{}-{}-{}'.format(host['name'], net, i)
-                    ovn_nb_txn.add(ovs_idl.iface_set_external_id(
-                        host_iface_name, 'iface-id', iface_id))
-                    ovn_nb_txn.add(ovn_nb_idl.lsp_add(
-                        _get_ls_name(net), iface_id))
-                    guest_iface_mac = _get_incremented_mac(
-                        mac_by_iface[host_iface_name])
-                    ovn_nb_txn.add(ovn_nb_idl.lsp_set_addresses(
-                        iface_id, [guest_iface_mac]))
+    for host in hosts:
+        ports_by_net = {}
+        for port in host['ports']:
+            ports_by_net.setdefault(port['networkName'], []).append(port)
+        for net, ports in ports_by_net.items():
+            for i, port in enumerate(ports):
+                host_iface_name = port['hostInterface']
+                ovs_cmds.append(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
+                _ip.link_set(host_iface_name, ['up'])
+                iface_id = '{}-{}-{}'.format(host['name'], net, i)
+                ovn_cmds.append(ovs_idl.iface_set_external_id(
+                    host_iface_name, 'iface-id', iface_id))
+                ovn_cmds.append(ovn_idl.lsp_add(
+                    _get_ls_name(net), iface_id))
+                guest_iface_mac = _get_incremented_mac(
+                    mac_by_iface[host_iface_name])
+                ovn_cmds.append(ovn_idl.lsp_set_addresses(
+                    iface_id, [guest_iface_mac]))
                     # TODO set port security?
+    return ovn_cmds, ovs_cmds
 
 
 # TODO: use ovsdbapp when static routes are fixed
@@ -176,13 +184,13 @@ def _get_incremented_mac(mac):
 
 def cleanup():
     ovs_idl = _ovs.create_idl()
-    ovn_nb_idl = _ovn_nb.create_idl()
-    _cleanup(ovs_idl, ovn_nb_idl)
+    ovn_idl = _ovn_nb.create_idl()
+    _cleanup(ovs_idl, ovn_idl)
 
 
-def _cleanup(ovs_idl, ovn_nb_idl):
+def _cleanup(ovs_idl, ovn_idl):
     _detach_ports(ovs_idl)
-    _remove_routers_and_switches(ovn_nb_idl)
+    _remove_routers_and_switches(ovn_idl)
 
 
 def _detach_ports(ovs_idl):
@@ -193,9 +201,9 @@ def _detach_ports(ovs_idl):
             txn.add(ovs_idl.del_port(port, BRIDGE_NAME))
 
 
-def _remove_routers_and_switches(ovn_nb_idl):
-    with ovn_nb_idl.create_transaction(check_error=True) as txn:
-        for router in ovn_nb_idl.lr_list().execute():
-            txn.add(ovn_nb_idl.lr_del(router.name))
-        for switch in ovn_nb_idl.ls_list().execute():
-            txn.add(ovn_nb_idl.ls_del(switch.name))
+def _remove_routers_and_switches(ovn_idl):
+    with ovn_idl.create_transaction(check_error=True) as txn:
+        for router in ovn_idl.lr_list().execute():
+            txn.add(ovn_idl.lr_del(router.name))
+        for switch in ovn_idl.ls_list().execute():
+            txn.add(ovn_idl.ls_del(switch.name))
