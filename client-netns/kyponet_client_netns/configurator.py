@@ -113,17 +113,20 @@ def _configure_routes(networks, veth_by_link):
             next_hop_network_name = route['nextHopNetwork']
             next_hop_address = network_by_name[next_hop_network_name][
                 'address4']
+            metric = route['metric']
             netns_name = _get_netns_name(network_name)
             if next_hop_network_name == dst_network_name:
                 dev = veth_by_link[(network_name, next_hop_network_name)]
                 neighbor_routes_config.append({
                     'subnet': next_hop_address,
                     'dev': dev,
+                    'metric': metric,
                     'netns': netns_name
                 })
             routes_config.append({
                 'subnet': dst_subnet,
                 'via': next_hop_address,
+                'metric': metric,
                 'netns': netns_name
             })
 

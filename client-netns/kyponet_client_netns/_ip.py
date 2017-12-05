@@ -34,8 +34,8 @@ def address_add(dev, address, netns=None):
         netns))
 
 
-def route_add(subnet, dev=None, via=None, netns=None):
-    command = ['ip', 'route', 'add', subnet]
+def route_add(subnet, metric, dev=None, via=None, netns=None):
+    command = ['ip', 'route', 'add', subnet, 'metric', str(metric)]
     if via:
         command += ['via', via]
     if dev:
