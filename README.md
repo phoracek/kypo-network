@@ -4,6 +4,20 @@ This project automates process of KYPO LMN networking configuration. Sandbox
 configuration is read either from specified JSON or from KYPODB and applied on
 LMNs in order to configure desired network topology.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+  - [master](#master)
+  - [client](#client)
+    - [client-legacy](#client-legacy)
+    - [client-netns](#client-netns)
+    - [client-sdn](#client-sdn)
+- [Examples](#examples)
+  - [Setup legacy multi-LMN networking](#setup-legacy-multi-lmn-networking)
+  - [Setup netns based single-LMN networking](#setup-netns-based-single-lmn-networking)
+  - [[WIP] Setup SDN based single-LMN networking](#wip-setup-sdn-based-single-lmn-networking)
+- [Development and Testing](#development-and-testing)
+
 ## Architecture
 
 This application consists of two parts, master and client.
