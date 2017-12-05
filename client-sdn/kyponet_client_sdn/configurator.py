@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import random
 import subprocess
 
@@ -32,65 +33,58 @@ def setup(config):
 
     hosts = config['hosts']
     networks = config['networks']
-    network_links = config['networkLinks']
+    network_groups = _group_interconnected_networks(networks)
 
     with ovn_idl.create_transaction(check_error=True) as ovn_txn, \
             ovs_idl.create_transaction(check_error=True) as ovs_txn:
-        ovn_txn.extend(_create_routers_and_switches(ovn_idl, networks))
-        ovn_txn.extend(_connect_routers(ovn_idl, network_links, networks))
+        _extend(ovn_txn, _create_routers_and_switches(
+            ovn_idl, networks, network_groups))
         ovn_ports_cmds, ovs_ports_cmds = _attach_ports(ovs_idl, ovn_idl, hosts)
-        ovn_txn.extend(ovn_ports_cmds)
-        ovs_txn.extend(ovs_ports_cmds)
-    _configure_routes(networks)
+        _extend(ovn_txn, ovn_ports_cmds)
+        _extend(ovs_txn, ovs_ports_cmds)
+    _configure_routes(networks, network_groups)
 
 
-def _create_routers_and_switches(ovn_idl, networks):
-    cmds = []
+# TODO: https://review.openstack.org/#/c/524308/
+def _extend(transaction, commands):
+    for command in commands:
+        transaction.add(command)
+
+
+def _group_interconnected_networks(networks):
+    network_groups = []
     for network in networks:
-        lr_name = _get_lr_name(network['name'])
-        ls_name = _get_ls_name(network['name'])
-        lrp_name = '{}-{}'.format(lr_name, ls_name)
-        lsp_name = '{}-{}'.format(ls_name, lr_name)
-        mac = _random_unicast_local_mac()
-        prefix = network['cidr4'].split('/')[1]
-        ip_address = '{}/{}'.format(network['address4'], prefix)
-
-        cmds.append(ovn_idl.lr_add(lr_name))
-        cmds.append(ovn_idl.lrp_add(lr_name, lrp_name, mac, [ip_address]))
-
-        cmds.append(ovn_idl.ls_add(ls_name))
-        cmds.append(ovn_idl.lsp_add(ls_name, lsp_name))
-        cmds.append(ovn_idl.lsp_set_type(lsp_name, 'router'))
-        cmds.append(ovn_idl.lsp_set_addresses(lsp_name, ['router']))
-        cmds.append(ovn_idl.lsp_set_options(
-            lsp_name, **{'router-port': lrp_name}))
-    return cmds
+        if network['name'] in itertools.chain.from_iterable(network_groups):
+            continue
+        network_groups.append(
+            {network['name']} |
+            {route['dstNetwork'] for route in network['routes']})
+    return network_groups
 
 
-def _connect_routers(ovn_idl, network_links, networks):
-    cmds = []
+def _create_routers_and_switches(ovn_idl, networks, network_groups):
     network_by_name = {network['name']: network for network in networks}
-    for network_link in network_links:
-        network_a = network_by_name[network_link['networkA']]
-        lr_a_name = _get_lr_name(network_a['name'])
-        prefix_a = network_a['cidr4'].split('/')[1]
-        lr_a_address = '{}/{}'.format(network_a['address4'], prefix_a)
 
-        network_b = network_by_name[network_link['networkB']]
-        lr_b_name = _get_lr_name(network_b['name'])
-        prefix_b = network_b['cidr4'].split('/')[1]
-        lr_b_address = '{}/{}'.format(network_b['address4'], prefix_b)
+    cmds = []
+    for network_group_index, network_group in enumerate(network_groups):
+        lr_name = _get_lr_name(network_group_index)
+        cmds.append(ovn_idl.lr_add(lr_name))
+        for network_name in network_group:
+            network = network_by_name[network_name]
+            ls_name = _get_ls_name(network_name)
+            lrp_name = '{}-{}'.format(lr_name, ls_name)
+            lsp_name = '{}-{}'.format(ls_name, lr_name)
+            mac = _random_unicast_local_mac()
+            prefix = network['cidr4'].split('/')[1]
+            ip_address = '{}/{}'.format(network['address4'], prefix)
 
-        lrp_a_name = '{}-{}'.format(lr_a_name, lr_b_name)
-        lrp_a_mac = _random_unicast_local_mac()
-
-        lrp_b_name = '{}-{}'.format(lr_b_name, lr_a_name)
-        lrp_b_mac = _random_unicast_local_mac()
-
-        cmds.append(ovn_idl.lrp_add(
-            lr_a_name, lrp_a_name, lrp_a_mac, [lr_a_address], peer=lrp_b_name))
-        cmds.append(ovn_idl.lrp_add(
-            lr_b_name, lrp_b_name, lrp_b_mac, [lr_b_address], peer=lrp_a_name))
+            cmds.append(ovn_idl.lrp_add(lr_name, lrp_name, mac, [ip_address]))
+            cmds.append(ovn_idl.ls_add(ls_name))
+            cmds.append(ovn_idl.lsp_add(ls_name, lsp_name))
+            cmds.append(ovn_idl.lsp_set_type(lsp_name, 'router'))
+            cmds.append(ovn_idl.lsp_set_addresses(lsp_name, ['router']))
+            cmds.append(ovn_idl.lsp_set_options(
+                lsp_name, **{'router-port': lrp_name}))
     return cmds
 
 
@@ -116,35 +110,27 @@ def _attach_ports(ovs_idl, ovn_idl, hosts):
                     mac_by_iface[host_iface_name])
                 ovn_cmds.append(ovn_idl.lsp_set_addresses(
                     iface_id, [guest_iface_mac]))
-                    # TODO set port security?
     return ovn_cmds, ovs_cmds
 
 
 # TODO: use ovsdbapp when static routes are fixed
-def _configure_routes(networks):
+def _configure_routes(networks, network_groups):
     network_by_name = {network['name']: network for network in networks}
 
-    for network_name, network in network_by_name.items():
-        for route in network['routes']:
-            dst_network_name = route['dstNetwork']
-            dst_subnet = network_by_name[dst_network_name]['cidr4']
-            next_hop_network_name = route['nextHopNetwork']
-            next_hop_address = network_by_name[next_hop_network_name][
-                'address4']
-            if next_hop_network_name == dst_network_name:
-                # TODO: do we need this?
-                pass
-            lr_name = _get_lr_name(network_name)
-            lrp_name = '{}-{}'.format(
-                lr_name, _get_lr_name(next_hop_network_name))
+    for network_group_index, network_group in enumerate(network_groups):
+        lr_name = _get_lr_name(network_group_index)
+        for network_name in network_group:
+            network = network_by_name[network_name]
+            dst_subnet = network['cidr4']
+            next_hop_address = network['address4']
             subprocess.check_call([
                 'ovn-nbctl', 'lr-route-add',
-                lr_name, dst_subnet, next_hop_address, lrp_name
+                lr_name, dst_subnet, next_hop_address
             ])
 
 
-def _get_lr_name(network_name):
-    return LR_PREFIX + network_name
+def _get_lr_name(lr_index):
+    return '{}{}'.format(LR_PREFIX, lr_index)
 
 
 def _get_ls_name(network_name):
