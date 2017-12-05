@@ -404,7 +404,7 @@ default route on the host).
 ip netns exec kns_net1 ping 10.0.3.2
 ```
 
-### Setup SDN based single-LMN networking
+### [WIP] Setup SDN based single-LMN networking
 
 
 Deploy single-LMN sandbox.
