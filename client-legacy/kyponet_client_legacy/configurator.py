@@ -17,7 +17,6 @@ from . import _ovs
 from . import _sysctl
 
 BRIDGE_NAME = 'br0'
-OWNED_METRIC = 123  # TODO: temporary solution for owned routes labeling
 
 
 def setup(config, network_name):
@@ -75,17 +74,18 @@ def _configure_routes(network, network_by_name, links):
         next_hop_network_name = route['nextHopNetwork']
         next_hop_address = network_by_name[next_hop_network_name][
             'address4']
+        metric = route['metric']
         if next_hop_network_name == dst_network_name:
             dev = dev_by_link[(network['name'], next_hop_network_name)]
             neighbor_routes_config.append({
                 'subnet': next_hop_address,
                 'dev': dev,
-                'metric': OWNED_METRIC
+                'metric': metric
             })
         routes_config.append({
             'subnet': dst_subnet,
             'via': next_hop_address,
-            'metric': OWNED_METRIC
+            'metric': metric
         })
 
     _sysctl.enable_ipv4_forwarding()
@@ -113,4 +113,5 @@ def _remove_bridge(ovs_idl):
 
 def _cleanup_routes():
     for route in set(_ip.route_list()):
-        _ip.route_del(route, metric=OWNED_METRIC, check_error=False)
+        if route != 'default' and not route.startswith('172.16.1.'):
+            _ip.route_del(route, check_error=False)

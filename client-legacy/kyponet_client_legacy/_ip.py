@@ -36,8 +36,8 @@ def route_add(subnet, metric, dev=None, via=None):
     subprocess.check_call(command)
 
 
-def route_del(subnet, metric, check_error=True):
-    command = [IP, 'route', 'del', subnet, 'metric', str(metric)]
+def route_del(subnet, check_error=True):
+    command = [IP, 'route', 'del', subnet]
     if check_error:
         subprocess.check_call(command)
     else:
