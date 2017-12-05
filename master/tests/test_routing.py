@@ -48,38 +48,181 @@ def test_routes():
             'name': 'net1',
             'cidr4': '10.0.1.0/24',
             'routes': [
-                {'dstNetwork': 'net2', 'nextHopNetwork': 'net2'},
-                {'dstNetwork': 'net3', 'nextHopNetwork': 'net2'}
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net2',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net2',
+                    'metric': 200
+                }
             ]
         },
         {
             'name': 'net2',
             'cidr4': '10.0.2.0/24',
             'routes': [
-                {'dstNetwork': 'net1', 'nextHopNetwork': 'net1'},
-                {'dstNetwork': 'net3', 'nextHopNetwork': 'net3'}
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net1',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net3',
+                    'metric': 100
+                }
             ]
         },
         {
             'name': 'net3',
             'cidr4': '10.0.3.0/24',
             'routes': [
-                {'dstNetwork': 'net1', 'nextHopNetwork': 'net2'},
-                {'dstNetwork': 'net2', 'nextHopNetwork': 'net2'}
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net2',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net2',
+                    'metric': 100
+                }
             ]
         },
         {
             'name': 'net4',
             'cidr4': '10.0.4.0/24',
-            'routes': [{'dstNetwork': 'net5', 'nextHopNetwork': 'net5'}]
+            'routes': [
+                {
+                    'dstNetwork': 'net5',
+                    'nextHopNetwork': 'net5',
+                    'metric': 100
+                }
+            ]
         },
         {
             'name': 'net5',
             'cidr4': '10.0.5.0/24',
-            'routes': [{'dstNetwork': 'net4', 'nextHopNetwork': 'net4'}]
+            'routes': [
+                {
+                    'dstNetwork': 'net4',
+                    'nextHopNetwork': 'net4',
+                    'metric': 100
+                }
+            ]
         }
     ]
 
     _routing.extend_networks_with_routing(
         config_networks, config_network_links)
+    assert config_networks == expected_config_networks
+
+
+def test_multipath_routes():
+    config_networks = [
+        {
+            'name': 'net1',
+            'cidr4': '10.0.1.0/24'
+        },
+        {
+            'name': 'net2',
+            'cidr4': '10.0.2.0/24'
+        },
+        {
+            'name': 'net3',
+            'cidr4': '10.0.3.0/24'
+        }
+    ]
+    config_network_links = [
+        {'networkA': 'net1', 'networkB': 'net2'},
+        {'networkA': 'net2', 'networkB': 'net3'},
+        {'networkA': 'net1', 'networkB': 'net3'}
+    ]
+    expected_config_networks = [
+        {
+            'name': 'net1',
+            'cidr4': '10.0.1.0/24',
+            'routes': [
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net2',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net3',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net2',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net3',
+                    'metric': 100
+                }
+            ]
+        },
+        {
+            'name': 'net2',
+            'cidr4': '10.0.2.0/24',
+            'routes': [
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net1',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net3',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net1',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net3',
+                    'nextHopNetwork': 'net3',
+                    'metric': 100
+                }
+            ]
+        },
+        {
+            'name': 'net3',
+            'cidr4': '10.0.3.0/24',
+            'routes': [
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net2',
+                    'metric': 200
+                },
+                {
+                    'dstNetwork': 'net1',
+                    'nextHopNetwork': 'net1',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net2',
+                    'metric': 100
+                },
+                {
+                    'dstNetwork': 'net2',
+                    'nextHopNetwork': 'net1',
+                    'metric': 200
+                }
+            ]
+        }
+    ]
+
+    _routing.extend_networks_with_routing(
+        config_networks, config_network_links)
+    print(config_networks)
     assert config_networks == expected_config_networks
