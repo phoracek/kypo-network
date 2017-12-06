@@ -27,6 +27,10 @@ def address_add(dev, address):
         [IP, 'address', 'add', address, 'dev', dev])
 
 
+def address_flush(dev):
+    subprocess.call([IP, 'address', 'flush', 'dev', dev])
+
+
 def route_add(subnet, metric, dev=None, via=None):
     command = [IP, 'route', 'add', subnet, 'metric', str(metric)]
     if via:

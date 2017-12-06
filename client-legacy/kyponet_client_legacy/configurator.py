@@ -102,12 +102,17 @@ def cleanup():
 
 
 def _cleanup(ovs_idl):
-    _remove_bridge(ovs_idl)
+    _cleanup_bridge(ovs_idl)
     _cleanup_routes()
 
 
-def _remove_bridge(ovs_idl):
-    ovs_idl.del_br(BRIDGE_NAME, if_exists=True).execute()
+def _cleanup_bridge(ovs_idl):
+    ports_to_detach = [
+        port for port in ovs_idl.list_ports(BRIDGE_NAME).execute() or []]
+    with ovs_idl.create_transaction(check_error=True) as txn:
+        for port in ports_to_detach:
+            txn.add(ovs_idl.del_port(port, BRIDGE_NAME))
+    _ip.address_flush(BRIDGE_NAME)
 
 
 def _cleanup_routes():
