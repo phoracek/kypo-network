@@ -89,9 +89,8 @@ def _configure_routes(network, network_by_name, links):
         })
 
     _sysctl.enable_ipv4_forwarding()
-    for dev in dev_by_link.values():
-        _ip.link_set(dev, ['up'])
     for route_config in neighbor_routes_config:
+        _ip.link_set(route_config['dev'], ['up'])
         _ip.route_add(**route_config)
     for route_config in routes_config:
         _ip.route_add(**route_config)
