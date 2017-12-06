@@ -12,20 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import json
+import logging
+import threading
 
 import paramiko
 
 
 def setup_multi_lmn(client_command, config):
+    threads = []
     for i, network in enumerate(config['networks']):
-        _setup_lmn(
-            '172.16.1.{}'.format(i + 2),
-            client_command,
-            config,
-            network['name']
-        )
+        threads.append(threading.Thread(
+            target=_setup_lmn,
+            args=(
+                '172.16.1.{}'.format(i + 2),
+                client_command,
+                config,
+                network['name']
+            )
+        ))
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
 
 
 def setup_single_lmn(client_command, config):
