@@ -46,7 +46,7 @@ def _setup_lmn(address, client_command, config, network_name=None):
     ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(address)
-    logging.info('Connected to LMN, requesting config %s', config)
+    logging.info('Connected to LMN %s, requesting config %s', address, config)
     try:
         command = client_command + ' setup'
         if network_name:
@@ -54,7 +54,7 @@ def _setup_lmn(address, client_command, config, network_name=None):
         stdin, stdout, stderr = ssh.exec_command(command)
         json.dump(config, stdin)
         stdin.channel.shutdown_write()
-        logging.info('Config setup finished with out: %s, err: %s',
-                     stdout.read(), stderr.read())
+        logging.info('Config setup on %s finished with out: %s, err: %s',
+                     address, stdout.read(), stderr.read())
     finally:
         ssh.close()
