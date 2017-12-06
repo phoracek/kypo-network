@@ -80,11 +80,13 @@ def _configure_routes(network, network_by_name, links):
             neighbor_routes_config.append({
                 'subnet': next_hop_address,
                 'dev': dev,
+                'src': network['address4'],
                 'metric': metric
             })
         routes_config.append({
             'subnet': dst_subnet,
             'via': next_hop_address,
+            'src': network['address4'],
             'metric': metric
         })
 
