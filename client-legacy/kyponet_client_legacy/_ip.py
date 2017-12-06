@@ -33,7 +33,7 @@ def route_add(subnet, metric, dev=None, via=None):
         command += ['via', via]
     if dev:
         command += ['dev', dev]
-    subprocess.check_call(command)
+    subprocess.call(command)
 
 
 def route_del(subnet, check_error=True):

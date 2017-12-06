@@ -40,7 +40,7 @@ def route_add(subnet, metric, dev=None, via=None, netns=None):
         command += ['via', via]
     if dev:
         command += ['dev', dev]
-    subprocess.check_call(_in_netns(command, netns))
+    subprocess.call(_in_netns(command, netns))
 
 
 def _in_netns(command, netns):
