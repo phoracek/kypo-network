@@ -112,6 +112,6 @@ def _remove_bridge(ovs_idl):
 
 
 def _cleanup_routes():
-    for route in set(_ip.route_list()):
+    for route in _ip.route_list():
         if route != 'default' and not route.startswith('172.16.1.'):
             _ip.route_del(route, check_error=False)
