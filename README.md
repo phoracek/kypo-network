@@ -45,7 +45,10 @@ namespaces. This is not yet fully integrated into KYPO.
 #### client-sdn
 
 Setups multiple networks on one LMN, network isolation is done via OVN
-(software-defined networking). This is not yet fully integrated into KYPO.
+(software-defined networking). This solution does not allow link quality
+simulation, nor it does simulate multiple hop routers, networks with
+connectivity are connected to single router and therefore there is always one
+hop between two networks. This is not yet fully integrated into KYPO.
 
 ## Examples
 
