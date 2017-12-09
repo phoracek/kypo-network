@@ -102,7 +102,7 @@ def _attach_ports(ovs_idl, ovn_idl, hosts):
                 ovs_cmds.append(ovs_idl.add_port(BRIDGE_NAME, host_iface_name))
                 _ip.link_set(host_iface_name, ['up'])
                 iface_id = '{}-{}-{}'.format(host['name'], net, i)
-                ovn_cmds.append(ovs_idl.iface_set_external_id(
+                ovs_cmds.append(ovs_idl.iface_set_external_id(
                     host_iface_name, 'iface-id', iface_id))
                 ovn_cmds.append(ovn_idl.lsp_add(
                     _get_ls_name(net), iface_id))
