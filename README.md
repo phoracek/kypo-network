@@ -421,7 +421,7 @@ default route on the host).
 ip netns exec kns_net1 ping 10.0.3.2
 ```
 
-### [WIP] Setup SDN based single-LMN networking
+### Setup SDN based single-LMN networking
 
 
 Deploy single-LMN sandbox.
@@ -536,6 +536,12 @@ echo 'nameserver 8.8.8.8' > /etc/resolv.conf
 git clone https://github.com/phoracek/kypo-network
 cd kypo-network/client-sdn
 pip install -U --force-reinstall .
+
+# install master version of ovsdbapp
+cd ~/
+git clone https://github.com/openstack/ovsdbapp
+cd ovsdbapp
+pip install -U --force-reinstall .
 ```
 
 Configure OVN on LMN.
@@ -638,7 +644,8 @@ configuration.
 kyponet-master --config configuration.json --client-type sdn
 ```
 
-Now there should be interconnectivity between all hosts.
+Note that SDN solution does not support traceroute. All networks with
+interconnectivity are connected to one router.
 
 ## Development and Testing
 
