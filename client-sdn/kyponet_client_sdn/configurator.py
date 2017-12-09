@@ -42,7 +42,7 @@ def setup(config):
         ovn_ports_cmds, ovs_ports_cmds = _attach_ports(ovs_idl, ovn_idl, hosts)
         _extend(ovn_txn, ovn_ports_cmds)
         _extend(ovs_txn, ovs_ports_cmds)
-    _configure_routes(networks, network_groups)
+        _extend(ovn_txn, _configure_routes(ovn_idl, networks, network_groups))
 
 
 # TODO: https://review.openstack.org/#/c/524308/
@@ -113,20 +113,18 @@ def _attach_ports(ovs_idl, ovn_idl, hosts):
     return ovn_cmds, ovs_cmds
 
 
-# TODO: use ovsdbapp when static routes are fixed
-def _configure_routes(networks, network_groups):
+def _configure_routes(ovn_idl, networks, network_groups):
+    cmds = []
     network_by_name = {network['name']: network for network in networks}
-
     for network_group_index, network_group in enumerate(network_groups):
         lr_name = _get_lr_name(network_group_index)
         for network_name in network_group:
             network = network_by_name[network_name]
             dst_subnet = network['cidr4']
             next_hop_address = network['address4']
-            subprocess.check_call([
-                'ovn-nbctl', 'lr-route-add',
-                lr_name, dst_subnet, next_hop_address
-            ])
+            cmds.append(ovn_idl.lr_route_add(
+                lr_name, dst_subnet, next_hop_address))
+    return cmds
 
 
 def _get_lr_name(lr_index):
