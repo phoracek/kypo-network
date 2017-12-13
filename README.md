@@ -15,7 +15,7 @@ LMNs in order to configure desired network topology.
 - [Examples](#examples)
   - [Setup legacy multi-LMN networking](#setup-legacy-multi-lmn-networking)
   - [Setup netns based single-LMN networking](#setup-netns-based-single-lmn-networking)
-  - [[WIP] Setup SDN based single-LMN networking](#wip-setup-sdn-based-single-lmn-networking)
+  - [Setup SDN based single-LMN networking](#setup-sdn-based-single-lmn-networking)
 - [Development and Testing](#development-and-testing)
 
 ## Architecture
