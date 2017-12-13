@@ -421,6 +421,9 @@ default route on the host).
 ip netns exec kns_net1 ping 10.0.3.2
 ```
 
+Please note that you might need to manualy configure IP address and default
+gateway on each host, since addressing from single-LMN does not match.
+
 ### Setup SDN based single-LMN networking
 
 
@@ -646,6 +649,9 @@ kyponet-master --config configuration.json --client-type sdn
 
 Note that SDN solution does not support traceroute. All networks with
 interconnectivity are connected to one router.
+
+Please also note that you might need to manualy configure IP address and
+default gateway on each host, since addressing from single-LMN does not match.
 
 ## Development and Testing
 
